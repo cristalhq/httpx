@@ -4,20 +4,23 @@
 [![pkg-img]][pkg-url]
 [![reportcard-img]][reportcard-url]
 [![coverage-img]][coverage-url]
+[![version-img]][version-url]
+
+Better `net/http` for Go.
 
 ## Rationale
 
+TODO
+
 ## Features
 
-* Simple API.
-* Easy to integrate.
-* Clean and tested code.
-* Concurrent-safe.
-* Dependency-free.
+* Simple.
+
+See [GUIDE.md](https://github.com/cristalhq/httpx/blob/main/GUIDE.md) for more details.
 
 ## Install
 
-Go version 1.16+
+Go version 1.17+
 
 ```
 go get github.com/cristalhq/httpx
@@ -26,9 +29,8 @@ go get github.com/cristalhq/httpx
 ## Example
 
 ```go
+TODO
 ```
-
-Also see examples: [example_test.go](https://github.com/cristalhq/httpx/blob/master/example_test.go).
 
 ## Documentation
 
@@ -44,5 +46,7 @@ See [these docs][pkg-url].
 [pkg-url]: https://pkg.go.dev/github.com/cristalhq/httpx
 [reportcard-img]: https://goreportcard.com/badge/cristalhq/httpx
 [reportcard-url]: https://goreportcard.com/report/cristalhq/httpx
-[coverage-img]: https://codecov.io/gh/cristalhq/httpx/branch/master/graph/badge.svg
+[coverage-img]: https://codecov.io/gh/cristalhq/httpx/branch/main/graph/badge.svg
 [coverage-url]: https://codecov.io/gh/cristalhq/httpx
+[version-img]: https://img.shields.io/github/v/release/cristalhq/httpx
+[version-url]: https://github.com/cristalhq/httpx/releases
