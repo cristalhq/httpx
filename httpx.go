@@ -7,6 +7,13 @@ import (
 	"net/http"
 )
 
+// Error for a request.
+type Error struct {
+	Type    string `json:"type"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
 // ErrorResponse return and error wrapped into JSON.
 func ErrorResponse(w http.ResponseWriter, code int, err error) {
 	if err == nil {
