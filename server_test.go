@@ -8,6 +8,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
+	t.Skip()
 	cfg := &ServerConfig{
 		Addr: ":8080",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
