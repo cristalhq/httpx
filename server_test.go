@@ -9,7 +9,7 @@ import (
 
 func TestServer(t *testing.T) {
 	cfg := &ServerConfig{
-		Addr: ":5051",
+		Addr: ":8080",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(207)
 			w.Header().Del("Date")
@@ -28,7 +28,7 @@ func TestServer(t *testing.T) {
 		srv.Run(ctx)
 	}()
 
-	resp, err := http.Get("http://:5051")
+	resp, err := http.Get("http://:8080")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestServer(t *testing.T) {
 
 	cancel()
 
-	if _, err := http.Get("http://:5051"); err == nil {
+	if _, err := http.Get("http://:8080"); err == nil {
 		t.Fatal("should fail")
 	}
 }
