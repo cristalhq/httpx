@@ -9,28 +9,20 @@ import (
 
 // Error for a request.
 type Error struct {
-	Type    string `json:"type"`
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code  int    `json:"code,omitempty"`
+	Error string `json:"error,omitempty"`
+	Type  string `json:"type,omitempty"`
 }
 
 // ErrorResponse return and error wrapped into JSON.
 func ErrorResponse(w http.ResponseWriter, code int, err error) {
-	if err == nil {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.WriteHeader(code)
-		return
+	data := Error{
+		Code: code,
+		// TODO: add Type
 	}
 
-	msg := err.Error()
-
-	data := struct {
-		Code  int    `json:"code"`
-		Error string `json:"error"`
-	}{
-		Code:  code,
-		Error: msg,
+	if err != nil {
+		data.Error = err.Error()
 	}
 
 	raw, errMarsh := json.Marshal(data)
@@ -41,12 +33,11 @@ func ErrorResponse(w http.ResponseWriter, code int, err error) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
 	_, _ = w.Write(prettyJSON(raw))
 }
 
-// TODO: enable by compile flag
+// TODO: enable by compile flag?
 func prettyJSON(b []byte) []byte {
 	var out bytes.Buffer
 	_ = json.Indent(&out, b, "", "  ")
