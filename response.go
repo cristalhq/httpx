@@ -8,6 +8,10 @@ func ReturnOK(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func ReturnOKJSON(w http.ResponseWriter, data interface{}) {
+	MarshalResponse(w, http.StatusOK, data)
+}
+
 func ReturnNotFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
 }
