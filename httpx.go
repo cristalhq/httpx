@@ -17,6 +17,8 @@ func (e Error) Error() string {
 }
 
 // ErrorResponse return and error wrapped into JSON.
+// If the err is httpx.Error, code parameter is ignoted and httpx.Error.Code is used.
+// If the err is nil just status code is returned.
 func ErrorResponse(w http.ResponseWriter, code int, err error) {
 	if err == nil {
 		w.WriteHeader(code)
@@ -26,12 +28,13 @@ func ErrorResponse(w http.ResponseWriter, code int, err error) {
 	var resp *Error
 	if e, ok := err.(*Error); ok {
 		resp = e
+		code = resp.Code
 	} else {
 		resp = &Error{
+			Code:    code,
 			Message: err.Error(),
 		}
 	}
-	resp.Code = code
 
 	// TODO: indent under compile flag?
 	raw, _ := json.MarshalIndent(resp, "", "  ")
