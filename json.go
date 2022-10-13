@@ -21,8 +21,8 @@ func MarshalResponse(w http.ResponseWriter, status int, response interface{}) {
 		return
 	}
 
-	w.Write(data)
 	w.WriteHeader(status)
+	w.Write(data)
 }
 
 const maxBodyBytes = 4096
