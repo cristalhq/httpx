@@ -22,6 +22,10 @@ type ServerConfig struct {
 	NoHTTP2   bool
 	TLSConfig *tls.Config
 
+	// TODO: enable option
+	HeartbeatPath    string
+	HeartbeatHandler http.HandlerFunc
+
 	ReadTimeout       time.Duration
 	ReadHeaderTimeout time.Duration
 	WriteTimeout      time.Duration
@@ -104,4 +108,10 @@ func (s *Server) shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	return s.srv.Shutdown(ctx)
+}
+
+func defaultHeartbeatHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("."))
 }
