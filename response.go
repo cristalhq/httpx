@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"io"
 	"net/http"
 )
 
@@ -22,4 +23,10 @@ func ReturnRedirect(w http.ResponseWriter) {
 
 func ReturnBadRequest(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusBadRequest)
+}
+
+// DiscardResponseBody reads and closes http.Response.Body.
+func DiscardResponseBody(resp *http.Response) {
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
 }
