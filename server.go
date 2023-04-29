@@ -3,7 +3,6 @@ package httpx
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"net"
 	"net/http"
 	"time"
@@ -88,7 +87,7 @@ func (s *Server) Start(ctx context.Context, h http.Handler) error {
 // Run starts the server.
 func (s *Server) Run(ctx context.Context) error {
 	if s.srv.Handler == nil {
-		return errors.New("handler cannot be nil")
+		panic("handler is nil")
 	}
 
 	s.srv.BaseContext = func(net.Listener) context.Context {
