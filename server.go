@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"net"
 	"net/http"
 	"time"
 )
@@ -88,6 +89,10 @@ func (s *Server) Start(ctx context.Context, h http.Handler) error {
 func (s *Server) Run(ctx context.Context) error {
 	if s.srv.Handler == nil {
 		return errors.New("handler cannot be nil")
+	}
+
+	s.srv.BaseContext = func(net.Listener) context.Context {
+		return ctx
 	}
 
 	errCh := make(chan error)
