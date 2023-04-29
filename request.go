@@ -85,3 +85,8 @@ func MustPostRequest(ctx context.Context, url string, body io.Reader) *http.Requ
 	}
 	return req
 }
+
+// Bearer header with a give token.
+func Bearer(token string) string {
+	return "Bearer " + token
+}
