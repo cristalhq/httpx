@@ -86,6 +86,15 @@ func MustPostRequest(ctx context.Context, url string, body io.Reader) *http.Requ
 	return req
 }
 
+// MustPutRequest returns a new http.Request with PUT method or panics on error.
+func MustPutRequest(ctx context.Context, url string, body io.Reader) *http.Request {
+	req, err := NewPutRequest(ctx, url, body)
+	if err != nil {
+		panic(fmt.Sprintf("httpx: must create PUT request: %v", err))
+	}
+	return req
+}
+
 // Bearer header with a give token.
 func Bearer(token string) string {
 	return "Bearer " + token
