@@ -2,7 +2,9 @@ package httpx
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/http/httputil"
 )
 
 // Error for a request.
@@ -42,4 +44,12 @@ func ErrorResponse(w http.ResponseWriter, code int, err error) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	w.Write(raw)
+}
+
+func DumpRequest(r *http.Request) string {
+	raw, err := httputil.DumpRequest(r, true)
+	if err != nil {
+		return fmt.Errorf("dump error: %#v", err).Error()
+	}
+	return fmt.Sprintf("%#v", string(raw))
 }
