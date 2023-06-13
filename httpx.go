@@ -53,3 +53,6 @@ func DumpRequest(r *http.Request) string {
 	}
 	return fmt.Sprintf("%#v", string(raw))
 }
+
+// NoopHandler just return 200 OK. Useful for prototyping.
+func NoopHandler(http.ResponseWriter, *http.Request) {}
