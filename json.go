@@ -11,7 +11,7 @@ import (
 
 // MarshalResponse writes an object to the http.ResponseWriter or a fallback error.
 func MarshalResponse(w http.ResponseWriter, status int, response interface{}) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	data, err := json.Marshal(response)
 	if err != nil {
