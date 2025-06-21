@@ -1,13 +1,25 @@
 package httpx
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
+	"net/url"
+	"strings"
 )
 
 var NoBody = http.NoBody
+
+var NilRequest = &http.Request{
+	Method: "STUB",
+	URL:    &url.URL{Path: "/"},
+	Header: http.Header{
+		"X-Real-Ip": []string{"0.0.0.0"},
+	},
+}
 
 // NewRequest returns a new http.Request.
 func NewRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
@@ -98,4 +110,33 @@ func MustPutRequest(ctx context.Context, url string, body io.Reader) *http.Reque
 // Bearer header with a give token.
 func Bearer(token string) string {
 	return "Bearer " + token
+}
+
+// RequestIP from the headers if possible.
+func RequestIP(r *http.Request) netip.Addr {
+	ip := cmp.Or(
+		r.Header.Get("Cf-Connecting-Ip"),
+		r.Header.Get("True-Client-IP"),
+		r.Header.Get("X-Real-Ip"),
+	)
+
+	if ip == "" {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			i := strings.Index(xff, ",")
+			if i == -1 {
+				i = len(xff)
+			}
+			ip = xff[:i]
+		} else {
+			ip = r.RemoteAddr
+		}
+	}
+
+	addr, err := netip.ParseAddr(ip)
+	if err == nil {
+		return addr
+	}
+
+	ap, _ := netip.ParseAddrPort(ip)
+	return ap.Addr()
 }
