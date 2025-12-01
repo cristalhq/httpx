@@ -112,25 +112,30 @@ func Bearer(token string) string {
 	return "Bearer " + token
 }
 
-// RequestIP from the headers if possible.
-func RequestIP(r *http.Request) netip.Addr {
+// RequestIPRaw from the headers if possible. Fallbacks to [http.Request.RemoteAddr].
+func RequestIPRaw(r *http.Request) string {
 	ip := cmp.Or(
 		r.Header.Get("Cf-Connecting-Ip"),
 		r.Header.Get("True-Client-IP"),
 		r.Header.Get("X-Real-Ip"),
 	)
-
-	if ip == "" {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			i := strings.Index(xff, ",")
-			if i == -1 {
-				i = len(xff)
-			}
-			ip = xff[:i]
-		} else {
-			ip = r.RemoteAddr
-		}
+	if ip != "" {
+		return ip
 	}
+
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		i := strings.Index(xff, ",")
+		if i == -1 {
+			i = len(xff)
+		}
+		return xff[:i]
+	}
+	return r.RemoteAddr
+}
+
+// RequestIP from the headers if possible.
+func RequestIP(r *http.Request) netip.Addr {
+	ip := RequestIPRaw(r)
 
 	addr, err := netip.ParseAddr(ip)
 	if err == nil {

@@ -10,7 +10,7 @@ import (
 )
 
 // MarshalResponse writes an object to the http.ResponseWriter or a fallback error.
-func MarshalResponse(w http.ResponseWriter, status int, response interface{}) {
+func MarshalResponse(w http.ResponseWriter, status int, response any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	data, err := json.Marshal(response)
@@ -25,10 +25,8 @@ func MarshalResponse(w http.ResponseWriter, status int, response interface{}) {
 	w.Write(data)
 }
 
-const maxBodyBytes = 4096
-
 // UnmarshalRequest as JSON with well defined error handling.
-func UnmarshalRequest(w http.ResponseWriter, r *http.Request, data interface{}) (code int, err error) {
+func UnmarshalRequest(w http.ResponseWriter, r *http.Request, maxBodyBytes int64, data any) (code int, err error) {
 	if ct := r.Header.Get("content-type"); !strings.HasPrefix(ct, "application/json") {
 		return http.StatusUnsupportedMediaType, fmt.Errorf("Content-Type header is not application/json: %s", ct)
 	}
@@ -40,6 +38,8 @@ func UnmarshalRequest(w http.ResponseWriter, r *http.Request, data interface{}) 
 	d.DisallowUnknownFields()
 
 	if err := d.Decode(&data); err != nil {
+		errText := err.Error()
+
 		var syntaxErr *json.SyntaxError
 		var unmarshalError *json.UnmarshalTypeError
 		switch {
@@ -49,12 +49,12 @@ func UnmarshalRequest(w http.ResponseWriter, r *http.Request, data interface{}) 
 			return http.StatusBadRequest, errors.New("malformed json")
 		case errors.As(err, &unmarshalError):
 			return http.StatusBadRequest, fmt.Errorf("invalid value %q at position %d", unmarshalError.Field, unmarshalError.Offset)
-		case strings.HasPrefix(err.Error(), "json: unknown field"):
-			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field")
+		case strings.HasPrefix(errText, "json: unknown field"):
+			fieldName := strings.TrimPrefix(errText, "json: unknown field")
 			return http.StatusBadRequest, errors.New("unknown field " + fieldName)
 		case errors.Is(err, io.EOF):
 			return http.StatusBadRequest, errors.New("body must not be empty")
-		case err.Error() == "http: request body too large":
+		case errText == "http: request body too large":
 			return http.StatusRequestEntityTooLarge, err
 		default:
 			return http.StatusInternalServerError, fmt.Errorf("failed to decode json: %w", err)

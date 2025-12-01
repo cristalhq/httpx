@@ -21,6 +21,8 @@ type ServerConfig struct {
 
 	NoHTTP2   bool
 	TLSConfig *tls.Config
+	CertFile  string
+	KeyFile   string
 
 	// TODO: enable option
 	HeartbeatPath    string
@@ -68,7 +70,9 @@ func NewServer(config *ServerConfig) (*Server, error) {
 			WriteTimeout:      config.WriteTimeout,
 			IdleTimeout:       config.IdleTimeout,
 			MaxHeaderBytes:    config.MaxHeaderBytes,
+			TLSConfig:         config.TLSConfig,
 		},
+		cfg: config,
 	}
 
 	if config.NoHTTP2 {
@@ -94,9 +98,31 @@ func (s *Server) Run(ctx context.Context) error {
 		return ctx
 	}
 
+	if s.cfg.TLSConfig == nil {
+		return s.run(ctx)
+	}
+	return s.runTLS(ctx)
+}
+
+func (s *Server) run(ctx context.Context) error {
 	errCh := make(chan error)
 	go func() {
 		errCh <- s.srv.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		return s.shutdown()
+
+	case err := <-errCh:
+		return err
+	}
+}
+
+func (s *Server) runTLS(ctx context.Context) error {
+	errCh := make(chan error)
+	go func() {
+		errCh <- s.srv.ListenAndServeTLS(s.cfg.CertFile, s.cfg.KeyFile)
 	}()
 
 	select {
@@ -112,10 +138,4 @@ func (s *Server) shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	return s.srv.Shutdown(ctx)
-}
-
-func defaultHeartbeatHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("."))
 }
