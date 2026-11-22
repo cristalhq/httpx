@@ -141,15 +141,232 @@ func TestRouter(t *testing.T) {
 		rs := rr.Result()
 
 		if rs.StatusCode != test.WantStatus {
-			t.Errorf("%s %s: status want %d; have %d",
+			t.Errorf(
+				"%s %s: status want %d; have %d",
 				test.Method, test.Path, test.WantStatus, rs.StatusCode,
 			)
 		}
 
 		if used != test.WantUsed {
-			t.Errorf("%s %s: middleware used: want %q; have %q",
+			t.Errorf(
+				"%s %s: middleware used: want %q; have %q",
 				test.Method, test.Path, test.WantUsed, used,
 			)
 		}
+	}
+}
+
+func TestRouterMiddlewareReuse(t *testing.T) {
+	r := NewRouter()
+
+	builds := 0
+	r.Use(func(next http.Handler) http.Handler {
+		builds++
+		requests := 0
+
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			requests++
+			if requests > 1 {
+				w.Header().Set("Reused", "true")
+			}
+			next.ServeHTTP(w, req)
+		})
+	})
+	r.HandleFunc("GET /{$}", func(w http.ResponseWriter, req *http.Request) {})
+
+	if builds != 1 {
+		t.Fatalf("middleware builds: want 1; have %d", builds)
+	}
+
+	// Empty Use must not rebuild the chain.
+	r.Use()
+
+	for i := 0; i < 3; i++ {
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, httptest.NewRequest("GET", "/", nil))
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("request %d: status want 200; have %d", i, rr.Code)
+		}
+
+		wantReused := ""
+		if i > 0 {
+			wantReused = "true"
+		}
+		if got := rr.Header().Get("Reused"); got != wantReused {
+			t.Errorf("request %d: Reused want %q; have %q", i, wantReused, got)
+		}
+	}
+
+	if builds != 1 {
+		t.Errorf("middleware builds after requests: want 1; have %d", builds)
+	}
+}
+
+func TestRouterMiddlewareOrder(t *testing.T) {
+	var used string
+
+	mw := func(name string) func(http.Handler) http.Handler {
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				used += name + ">"
+				next.ServeHTTP(w, req)
+				used += "<" + name
+			})
+		}
+	}
+
+	r := NewRouter()
+	r.Use(mw("a"), mw("b"))
+	r.Group(func(r *Router) {
+		r.Use(mw("c"), mw("d"))
+		r.HandleFunc("GET /{$}", func(w http.ResponseWriter, req *http.Request) {
+			used += "handler"
+		})
+	})
+
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
+
+	const want = "a>b>c>d>handler<d<c<b<a"
+	if used != want {
+		t.Errorf("middleware order: want %q; have %q", want, used)
+	}
+}
+
+func TestRouterMiddlewareScopes(t *testing.T) {
+	var used string
+
+	mw := func(name string) func(http.Handler) http.Handler {
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				used += name
+				next.ServeHTTP(w, req)
+			})
+		}
+	}
+
+	h := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		used += "h"
+	})
+
+	r := NewRouter()
+	r.Handle("GET /root", h)
+
+	// A router without middleware must serve requests.
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/root", nil))
+	if used != "h" {
+		t.Fatalf("without middleware: want %q; have %q", "h", used)
+	}
+
+	r.Group(func(r *Router) {
+		r.Use(mw("a"))
+		r.Handle("GET /before", h)
+
+		r.Group(func(r *Router) {
+			r.Use() // No-op within a group.
+			r.Use(mw("b"))
+			r.Handle("GET /child", h)
+		})
+
+		// Must not affect routes already registered by this group or its child.
+		r.Use(mw("c"))
+		r.Handle("GET /after", h)
+
+		// This child inherits the updated parent middleware.
+		r.Group(func(r *Router) {
+			r.Handle("GET /later-child", h)
+		})
+	})
+
+	r.Group(func(r *Router) {
+		r.Handle("GET /sibling", h)
+	})
+
+	// Global middleware also applies to routes registered before Use.
+	r.Use(mw("1"))
+	r.Use(mw("2"))
+
+	tests := []struct {
+		path string
+		want string
+	}{
+		{"/root", "12h"},
+		{"/before", "12ah"},
+		{"/child", "12abh"},
+		{"/after", "12ach"},
+		{"/later-child", "12ach"},
+		{"/sibling", "12h"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			used = ""
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, httptest.NewRequest("GET", tt.path, nil))
+
+			if rr.Code != http.StatusOK {
+				t.Errorf("status: want 200; have %d", rr.Code)
+			}
+			if used != tt.want {
+				t.Errorf("middleware used: want %q; have %q", tt.want, used)
+			}
+		})
+	}
+}
+
+func TestRouterRegistrationPanics(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   func(*Router)
+	}{
+		{
+			name: "nil handler",
+			fn: func(r *Router) {
+				r.Handle("GET /", nil)
+			},
+		},
+		{
+			name: "nil handler func",
+			fn: func(r *Router) {
+				r.HandleFunc("GET /", nil)
+			},
+		},
+		{
+			name: "invalid pattern",
+			fn: func(r *Router) {
+				r.HandleFunc("GET /{", func(http.ResponseWriter, *http.Request) {})
+			},
+		},
+		{
+			name: "duplicate pattern",
+			fn: func(r *Router) {
+				h := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+				r.Handle("GET /", h)
+				r.Handle("GET /", h)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := NewRouter()
+
+			// Wrapping must not hide nil handlers from registration checks.
+			r.Group(func(r *Router) {
+				r.Use(func(next http.Handler) http.Handler {
+					return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+						next.ServeHTTP(w, req)
+					})
+				})
+
+				defer func() {
+					if recover() == nil {
+						t.Error("registration did not panic")
+					}
+				}()
+
+				tt.fn(r)
+			})
+		})
 	}
 }
